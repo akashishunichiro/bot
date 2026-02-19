@@ -1,258 +1,231 @@
-# it_bot.py
-import asyncio
 import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from datetime import datetime
-import random
-from aiogram import Bot, Dispatcher, types
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from aiogram.types import ParseMode
-import aiohttp
-import os
-from dotenv import load_dotenv
+import asyncio
 
-# Sozlamalar
-load_dotenv()
-API_TOKEN = os.getenv('BOT_TOKEN')  # Bot token
-CHANNEL_ID = os.getenv('CHANNEL_ID')  # Kanal ID (masalan: @it_dasturlash)
+# --- SOZLAMALAR ---
+BOT_TOKEN = "8535047554:AAHumC1Zd6f4xRqjH07nVGZnAvI4J1JaVUI"  # Tokeningizni qo'ying
+ADMIN_CHAT_ID = 5820630707 # Admin chat ID si
 
 # Logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Bot va Dispatcher
-bot = Bot(token=API_TOKEN)
-dp = Dispatcher(bot)
-dp.middleware.setup(LoggingMiddleware())
-
-
-class ITContentGenerator:
-    """IT va dasturlashga oid kontent generatori"""
-
-    def __init__(self):
-        self.programming_languages = [
-            "Python", "JavaScript", "Java", "C++", "C#", "PHP", "Ruby",
-            "Swift", "Kotlin", "Go", "Rust", "TypeScript", "Dart", "SQL"
-        ]
-
-        self.topics = [
-            "Sun'iy intellekt", "Machine Learning", "Data Science", "Veb dasturlash",
-            "Mobil dasturlash", "Kiberxavfsizlik", "Bulutli texnologiyalar",
-            "Blockchain", "DevOps", "Ma'lumotlar bazasi", "API", "Microservices",
-            "Testlash", "Git va GitHub", "Algoritmlar", "Ma'lumotlar tuzilmasi"
-        ]
-
-        self.fun_facts = [
-            "Birinchi kompyuter dasturchisi ayol edi: Ada Lovelace (1840)",
-            "Python dasturlash tili Monty Python guruhidan ilhomlangan",
-            "JavaScript 10 kunda yaratilgan!",
-            "Git dastlab Linux yadrosi uchun yaratilgan",
-            "Stack Overflow'da eng ko'p so'raladigan til JavaScript",
-            "Java dastlab interaktiv televidenie uchun yaratilgan",
-            "Google dastlab 'Backrub' deb nomlangan",
-            "Birinchi kompyuter virusi 1983 yilda yaratilgan",
-            "HTML emoji-larni qo'llab-quvvatlaydi: 😊",
-            "GitHub dunyodagi eng katta kod ombori"
-        ]
-
-        self.tips = [
-            "Har kuni kamida 30 daqiqa kod yozing",
-            "Git dan muntazam foydalaning",
-            "Stack Overflow dan foydalanishdan qo'rqmang",
-            "Kod o'qish - kod yozish kabi muhim",
-            "Yangi texnologiyalarni o'rganishda davom eting",
-            "Open Source loyihalarda qatnashing",
-            "IT community ga qo'shiling",
-            "Ingliz tilini o'rganing - bu juda muhim",
-            "Algoritmlarni mukammal o'rganing",
-            "Yaxshi dokumentatsiya yozishni o'rganing"
-        ]
-
-        # API orqali rasmlar olish uchun
-        self.image_apis = {
-            'code': 'https://source.unsplash.com/featured/?programming,coding',
-            'tech': 'https://source.unsplash.com/featured/?technology,computer',
-            'developer': 'https://source.unsplash.com/featured/?developer,workspace'
-        }
-
-    async def get_random_image(self):
-        """Tasodifiy ITga oid rasm olish"""
-        image_type = random.choice(list(self.image_apis.keys()))
-        url = self.image_apis[image_type]
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, allow_redirects=True) as response:
-                if response.status == 200:
-                    return response.url
-        return None
-
-    def get_daily_quote(self):
-        """Dasturlash haqida iqtibos"""
-        quotes = [
-            "Yaxshi kod - bu o'z-o'zidan dokumentatsiya - *Unknown*",
-            "Har qandaxona ahmoq kompyuter tushunadigan kod yozishi mumkin. Yaxshi dasturchilar esa odamlar tushunadigan kod yozadi - *Martin Fowler*",
-            "Birinchi marta ishlaydigan kodingizni ko'rishdek zavq yo'q - *Unknown*",
-            "Dasturlash - bu san'at - *Unknown*",
-            "Talk is cheap. Show me the code - *Linus Torvalds*",
-            "Code is like humor. When you have to explain it, it's bad - *Cory House*"
-        ]
-        return random.choice(quotes)
-
-    def get_programming_joke(self):
-        """Dasturlash haqida hazil"""
-        jokes = [
-            "Why do programmers prefer dark mode? Because light attracts bugs! 🐛",
-            "There are only 10 types of people in the world: those who understand binary and those who don't",
-            "SQL injection into my life, I get 'complete' error",
-            "I would tell you a UDP joke, but you might not get it",
-            "Why do Java developers wear glasses? Because they can't C#",
-            "A QA engineer walks into a bar. Runs into a bar. Crawls into a bar. Dances into a bar...",
-            "['hip', 'hip'] (hip hip array!)"
-        ]
-        return random.choice(jokes)
-
-    def get_today_in_history(self):
-        """IT tarixida bugun"""
-        today = datetime.now()
-        month = today.month
-        day = today.day
-
-        events = {
-            (2, 15): "1946 - ENIAC kompyuteri taqdim etildi",
-            (3, 2): "1983 - Compact Disc (CD) taqdim etildi",
-            (4, 4): "1975 - Microsoft kompaniyasi tashkil etildi",
-            (5, 15): "1990 - WorldWideWeb (WWW) taqdim etildi",
-            (6, 5): "2007 - iPhone birinchi marta sotuvga chiqdi",
-            (9, 4): "1998 - Google kompaniyasi tashkil etildi",
-            (10, 1): "1982 - Sony birinchi CD player chiqardi",
-            (11, 10): "1983 - Microsoft Windows taqdim etildi",
-            (12, 17): "1903 - Wright brothers birinchi parvoz"
-        }
-
-        return events.get((month, day), f"{day}.{month} - IT tarixida oddiy kun")
-
-    async def generate_post(self, post_type=None):
-        """Post yaratish"""
-        if not post_type:
-            post_type = random.choice(['fact', 'tip', 'language', 'topic', 'joke', 'quote'])
-
-        image_url = await self.get_random_image()
-
-        if post_type == 'fact':
-            content = f"📊 *IT Fact*\n\n{random.choice(self.fun_facts)}"
-        elif post_type == 'tip':
-            content = f"💡 *Dasturchi Maslahati*\n\n{random.choice(self.tips)}"
-        elif post_type == 'language':
-            lang = random.choice(self.programming_languages)
-            content = f"🔷 *{lang} dasturlash tili*\n\n{self.get_language_info(lang)}"
-        elif post_type == 'topic':
-            topic = random.choice(self.topics)
-            content = f"🔬 *{topic}*\n\n{self.get_topic_info(topic)}"
-        elif post_type == 'joke':
-            content = f"😄 *Dasturchi Hazili*\n\n{self.get_programming_joke()}"
-        else:  # quote
-            content = f"📝 *Dasturchi Iqtibosi*\n\n{self.get_daily_quote()}"
-
-        # Hashteglar qo'shish
-        hashtags = "\n\n#IT #Dasturlash #Programmer #Coding #Developer #Tech #Uzbekistan"
-
-        return {
-            'text': content + hashtags,
-            'image': image_url
-        }
-
-    def get_language_info(self, language):
-        """Dasturlash tili haqida ma'lumot"""
-        info = {
-            "Python": "• Oson o'rganiladi\n• Data Science va AI uchun eng yaxshi\n• Django, Flask frameworklari",
-            "JavaScript": "• Veb dasturlash uchun asosiy til\n• React, Vue, Angular frameworklari\n• Frontend va Backend (Node.js)",
-            "Java": "• Android dasturlash\n• Katta korxona loyihalari\n• Spring framework",
-            "C++": "• O'yinlar va tizim dasturlari\n• Yuqori tezlik\n• Unreal Engine",
-            "C#": "• .NET platformasi\n• Windows dasturlari\n• Unity o'yinlar uchun"
-        }
-        return info.get(language, f"{language} - zamonaviy dasturlash tili")
-
-    def get_topic_info(self, topic):
-        """Mavzu haqida qisqacha"""
-        info = {
-            "Sun'iy intellekt": "Inson aqlini taqlid qiluvchi tizimlar. Machine Learning, Deep Learning, Neural Networks.",
-            "Machine Learning": "Ma'lumotlardan o'rganuvchi algoritmlar. TensorFlow, PyTorch, scikit-learn.",
-            "Veb dasturlash": "Frontend (HTML, CSS, JS) va Backend (Python, PHP, Node.js)",
-            "Kiberxavfsizlik": "Tizimlarni himoya qilish. Ethical Hacking, Encryption, Security protocols.",
-            "DevOps": "Development va Operations. CI/CD, Docker, Kubernetes, Cloud services."
-        }
-        return info.get(topic, f"{topic} - muhim IT yo'nalishi")
+# Foydalanuvchi holatlari
+user_states = {}  # {chat_id: 'waiting_template'}
 
 
-# Kontent generator
-content_gen = ITContentGenerator()
+# /start komandasi
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    chat_id = update.effective_chat.id
 
-
-@dp.message_handler(commands=['start'])
-async def start_command(message: types.Message):
-    await message.reply(
-        "👋 Assalomu alaykum! IT Dasturlash boni ishga tushdi.\n"
-        "Har soatda IT va dasturlash haqida qiziqarli postlar kanalga joylanadi!\n\n"
-        "Kanal: @it_dasturlash"
+    # Salomlashish
+    welcome_text = (
+        f"👋 Assalomu alaykum, {user.first_name}!\n\n"
+        f"📚 <b>Multi-Level Record</b> rasmiy botiga xush kelibsiz.\n"
+        f"Quyidagi tugma orqali ma'lumotlarni yuborishingiz mumkin."
     )
 
+    # Inline tugma
+    keyboard = [[InlineKeyboardButton("📝 Savollarni yuborish", callback_data="send_questions")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-@dp.message_handler(commands=['post_now'])
-async def post_now_command(message: types.Message):
-    """Test uchun hoziroq post yuborish"""
-    if message.from_user.id == int(os.getenv('ADMIN_ID')):
-        post = await content_gen.generate_post()
-        await send_post(post)
-        await message.reply("✅ Post yuborildi!")
+    await update.message.reply_text(welcome_text, parse_mode='HTML', reply_markup=reply_markup)
+
+    # Holatni tozalash
+    if chat_id in user_states:
+        del user_states[chat_id]
+
+
+# Inline tugma bosilganda
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = query.message.chat_id
+
+    if query.data == "send_questions":
+        # Shablonni yuborish
+        template_text = (
+            "📋 <b>Iltimos quyidagi ma'lumotlarni to'ldiring:</b>\n\n"
+            " <b>Candidate name:</b>\n"
+            "(Ism va familiyangizni yozing)\n\n"
+            "<b>Exam date:</b>\n"
+            "(Imtixon sanasi)\n\n"
+            "<b>City/Region:</b>\n"
+            "(Shahar va tumaningiz)\n\n"
+            "1. <b>Speaking Part 1.1:</b>\n"
+            "(Savolga javob)\n\n"
+            "1.2 <b>Speaking Part 1.2:</b>\n"
+            "(Rasmlarda nima borligini o'zbekcha yozing)\n\n"
+            "2. <b>Speaking Part 2:</b>\n"
+            "(2-qism javobi)\n\n"
+            "3. <b>Speaking Part 3:</b>\n"
+            "(3-qism javobi)\n\n"
+            " <i>Javoblaringizni yuqoridagi ketma-ketlikda yuboring:</i>"
+        )
+
+        await query.message.reply_text(template_text, parse_mode='HTML')
+
+        # Holatni o'zgartirish: shablon kutilmoqda
+        user_states[chat_id] = 'waiting_template'
+
+
+
+# Foydalanuvchi xabarlarini qabul qilish
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user_message = update.message.text
+    user = update.effective_user
+
+    # Holatni tekshirish
+    current_state = user_states.get(chat_id)
+
+    if current_state == 'waiting_template':
+        # Shablon ma'lumotlari qabul qilindi
+        await process_template(update, context, user_message)
     else:
-        await message.reply("❌ Siz admin emassiz!")
+        # Oddiy xabar
+        await update.message.reply_text(
+            "Iltimos, avval /start ni bosing va tugma orqali ma'lumotlarni yuboring."
+        )
 
 
-async def send_post(post):
-    """Postni kanalga yuborish"""
+# Shablonni qayta ishlash
+async def process_template(update: Update, context: ContextTypes.DEFAULT_TYPE, message_text: str):
+    chat_id = update.effective_chat.id
+    user = update.effective_user
+
+    # Ma'lumotlarni qatorlarga ajratish
+    lines = message_text.strip().split('\n')
+
+    # Ma'lumotlarni tartiblash
     try:
-        if post['image']:
-            # Rasm bilan yuborish
-            await bot.send_photo(
-                chat_id=CHANNEL_ID,
-                photo=post['image'],
-                caption=post['text'],
-                parse_mode=ParseMode.MARKDOWN
-            )
+        # Kamida 7 qator bo'lishi kerak
+        if len(lines) >= 7:
+            candidate_name = lines[0].strip()
+            exam_date = lines[1].strip()
+            city_region = lines[2].strip()
+            speaking11 = lines[3].strip()
+            speaking12 = lines[4].strip()
+            speaking2 = lines[5].strip()
+            speaking3 = '\n'.join(lines[6:]).strip()  # Qolgan hammasi speaking3
         else:
-            # Faqat matn
-            await bot.send_message(
-                chat_id=CHANNEL_ID,
-                text=post['text'],
-                parse_mode=ParseMode.MARKDOWN
+            # Agar qatorlar kam bo'lsa, hammasini bitta qilib yuboramiz
+            await update.message.reply_text(
+                "❌ Ma'lumotlar yetarli emas. Iltimos, barcha 7 qismni to'liq yozing.\n"
+                "Yoki /start ni bosib qaytadan urinib ko'ring."
             )
-        logging.info(f"Post yuborildi: {datetime.now()}")
+            return
     except Exception as e:
-        logging.error(f"Xatolik: {e}")
+        await update.message.reply_text(
+            "❌ Xatolik yuz berdi. Iltimos, ma'lumotlarni to'g'ri formatda yuboring."
+        )
+        logger.error(f"Xatolik: {e}")
+        return
 
-
-async def scheduler():
-    """Har soatda post yuborish"""
-    while True:
-        now = datetime.now()
-        # Birinchi postni ertalab 8 da boshlash
-        if now.hour >= 8 and now.hour <= 23:
-            post = await content_gen.generate_post()
-            await send_post(post)
-
-        # 1 soat kutish (3600 sekund)
-        await asyncio.sleep(3600)
-
-
-async def on_startup(dp):
-    """Bot ishga tushganda"""
-    asyncio.create_task(scheduler())
-    await bot.send_message(
-        CHANNEL_ID,
-        "🤖 *Bot ishga tushdi!*\nEndi har soatda IT va dasturlash haqida postlar joylanadi.",
-        parse_mode=ParseMode.MARKDOWN
+    # Foydalanuvchiga tasdiq
+    await update.message.reply_text(
+        "@multilevel_center kanaliga savolingiz yuboriladi. Savol ulashganingiz uchun raxmat🔥"
     )
+
+    # Adminga xabar tayyorlash
+    admin_message = (
+        f"📬 <b>YANGI MA'LUMOTLAR</b>\n"
+        f"━━━━━━━━━━━━━━━\n\n"
+        f"👤 <b>Foydalanuvchi:</b> {user.full_name}\n"
+        f"🆔 <b>ID:</b> <code>{user.id}</code>\n"
+        f"📅 <b>Sana:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+        f"━━━━━━━━━━━━━━━\n\n"
+        f"<b>1. Candidate name:</b>\n{candidate_name}\n\n"
+        f"<b>2. Exam date:</b>\n{exam_date}\n\n"
+        f"<b>3. City/Region:</b>\n{city_region}\n\n"
+        f"<b>4. Speaking Part 1.1:</b>\n{speaking11}\n\n"
+        f"<b>5. Speaking Part 1.2:</b>\n{speaking12}\n\n"
+        f"<b>6. Speaking Part 2:</b>\n{speaking2}\n\n"
+        f"<b>7. Speaking Part 3:</b>\n{speaking3}\n\n"
+        f"━━━━━━━━━━━━━━━"
+    )
+
+    # Adminga yuborish
+    try:
+        await context.bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=admin_message,
+            parse_mode='HTML'
+        )
+        logger.info(f"Admin ga yuborildi. User: {user.id}")
+    except Exception as e:
+        logger.error(f"Admin ga yuborishda xatolik: {e}")
+        await update.message.reply_text(
+            "⚠️ Ma'lumotlar qabul qilindi, lekin adminga yuborishda xatolik yuz berdi.\n"
+            "Tez orada admin bilan bog'lanamiz."
+        )
+
+    # Holatni tozalash
+    del user_states[chat_id]
+
+    # Qayta start qilish uchun tugma
+    keyboard = [[InlineKeyboardButton("🔄 Yangi ma'lumot yuborish", callback_data="send_questions")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(
+        "Yana ma'lumot yuborish uchun quyidagi tugmani bosing:",
+        reply_markup=reply_markup
+    )
+
+
+# Admin uchun maxsus komanda
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+
+    if chat_id == ADMIN_CHAT_ID:
+        # Bot statistikasi
+        active_users = len(user_states)
+        await update.message.reply_text(
+            f"📊 <b>Bot statistikasi</b>\n\n"
+            f"👥 Faol foydalanuvchilar: {active_users}\n"
+            f"🤖 Bot ishlamoqda ✅",
+            parse_mode='HTML'
+        )
+    else:
+        await update.message.reply_text("Bu komanda faqat admin uchun!")
+
+
+# Xatolarni qayta ishlash
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.error(f"Xatolik yuz berdi: {context.error}")
+
+    if update and update.effective_chat:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="❌ Texnik xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring."
+        )
+
+
+def main():
+    # Botni yaratish
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    # Handlerlarni qo'shish
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("admin", admin_command))
+    app.add_handler(CallbackQueryHandler(button_callback))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Xatolik handleri
+    app.add_error_handler(error_handler)
+
+    # Botni ishga tushirish
+    print("🤖 Bot ishga tushdi...")
+    print(f"Bot token: {BOT_TOKEN}")
+    print(f"Admin ID: {ADMIN_CHAT_ID}")
+    print("CTRL+C ni bosing to'xtatish uchun")
+
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == '__main__':
-    from aiogram import executor
-
-    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+    main()
